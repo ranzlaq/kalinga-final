@@ -474,7 +474,11 @@ def create_report_figure(rgb_img, detections, stats):
 def main():
     st.title("A Mathematical Model on Breast-to-Hotspot Temperature Asymmetry and Breast Temperature Variation Through AI-Based Thermography Analysis for Breast Cancer Pre-Screening")
     st.markdown("")
-    st.markdown("[DESCRIPTION TOLLLL]")
+    st.markdown("This project implements a mathematical model trained under the YOLO ultralytics architecture to quantify the thermal risk associated with breast tissue. The utilization concerns the insight that cancerous or pre-cancerous regions (notably termed: hotspots) exhibit significantly higher temperature asymmetry (ΔT) compared to the surrounding healthy breast tissue, and that bilateral temperature asymmetry is a key diagnostic indicator.")
+    st.markdown("")
+    st.markdown("A blue-red paletted breast thermogram serves as the input of the trained model, to which it detects breast and hotspot regions, which then gets fed into a percentile pipeline where the median breast temperature and the maximum hotspot temperature are calculated. Asymmetry is derived and compared on tested thresholds from verified studies to determine thermal differences and hotspot rises across the tissue.")
+    st.markdown("")
+    st.markdown("A thermal analysis report serves as the output, where the processed thermogram, the calculated metrics, and the diagnostic summary are displayed.")
     st.markdown("---")
 
     uploaded_file = st.file_uploader("Upload a certified breast thermogram (blue-red palette only)", type=["jpg", "jpeg", "png"])
@@ -585,6 +589,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 

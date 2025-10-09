@@ -527,7 +527,7 @@ def create_report_figure(rgb_img, detections, stats):
 
 # -------------------- STREAMLIT MAIN APPLICATION --------------------
 def main():
-    st.title("KALINGA: Breast-to-Hotspot Temperature Asymmetry Through AI-Based Thermography Analysis for Breast Cancer Pre-Screening")
+    st.title("A Mathematical Model on Breast-to-Hotspot Temperature Asymmetry and Breast Temperature Variation Through AI-Based Thermography Analysis for Breast Cancer Pre-Screening")
     st.markdown("")
     st.markdown("[DESCRIPTION TOLLLL]")
     st.markdown("---")
@@ -646,4 +646,5 @@ def main():
                     st.exception(e)
 
 if __name__ == "__main__":
+
     main()

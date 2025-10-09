@@ -22,14 +22,14 @@ MODEL_PATH = "KALINGA_MODEL_FINAL.pt"
 MIN_TEMP = 32.0
 MAX_TEMP = 41.0
 HOTSPOT_PCT = 95.0
-MIN_DELTA_FOR_HOTSPOT = 0.2 
+MIN_DELTA_FOR_HOTSPOT = 0.2
 MAX_DT_THRESHOLD = 3.0
 
 # --- UTILITY FUNCTIONS ---
 @st.cache_resource
 def load_model(path):
     try:
-        model = YOLO(path) 
+        model = YOLO(path)
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -39,7 +39,9 @@ def pixel_to_temp(pixel_val, min_temp=MIN_TEMP, max_temp=MAX_TEMP):
     return min_temp + (pixel_val / 255.0) * (max_temp - min_temp)
 
 # -------------------- ASYMMETRY ANALYSIS --------------------
+# MODIFIED SIGNATURE: Added hottest_hotspot_box arguments
 def calculate_asymmetry(image_rgb, left_box, right_box,
+                        hottest_left_hotspot_box=None, hottest_right_hotspot_box=None,
                         hotspot_pct=HOTSPOT_PCT,
                         min_delta_for_hotspot=MIN_DELTA_FOR_HOTSPOT,
                         resize_for_diffmap=(100,100)):
@@ -59,6 +61,7 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
         st.error("Invalid bbox coordinates after boundary check.")
         return None
 
+    # Full breast ROIs (Used for Mean, Median, STD, Diffmap)
     left_roi_gray = image_gray[l_y1:l_y2, l_x1:l_x2]
     right_roi_gray = image_gray[r_y1:r_y2, r_x1:r_x2]
 
@@ -76,11 +79,38 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     median_left = pixel_to_temp(median_left_px)
     median_right = pixel_to_temp(median_right_px)
 
-    hotspot_thresh_left_px = np.percentile(left_roi_gray, hotspot_pct)
-    hotspot_thresh_right_px = np.percentile(right_roi_gray, hotspot_pct)
+    # --- NEW LOGIC: Determine the source array for 95th Percentile ---
+    
+    # Default to full ROI
+    left_pct_source = left_roi_gray
+    right_pct_source = right_roi_gray
 
-    left_hotspots_px = left_roi_gray[left_roi_gray >= hotspot_thresh_left_px]
-    right_hotspots_px = right_roi_gray[right_roi_gray >= hotspot_thresh_right_px]
+    # If a specific hottest YOLO box is provided, use that for percentile calculation
+    if hottest_left_hotspot_box is not None:
+        hl_x1, hl_y1, hl_x2, hl_y2 = map(int, hottest_left_hotspot_box)
+        hl_x1 = max(0, min(w-1, hl_x1)); hl_x2 = max(0, min(w, hl_x2))
+        hl_y1 = max(0, min(h-1, hl_y1)); hl_y2 = max(0, min(h, hl_y2))
+        
+        temp_crop = image_gray[hl_y1:hl_y2, hl_x1:hl_x2]
+        if temp_crop.size > 0:
+            left_pct_source = temp_crop
+
+    if hottest_right_hotspot_box is not None:
+        hr_x1, hr_y1, hr_x2, hr_y2 = map(int, hottest_right_hotspot_box)
+        hr_x1 = max(0, min(w-1, hr_x1)); hr_x2 = max(0, min(w, hr_x2))
+        hr_y1 = max(0, min(h-1, hr_y1)); hr_y2 = max(0, min(h, hr_y2))
+        
+        temp_crop = image_gray[hr_y1:hr_y2, hr_x1:hr_x2]
+        if temp_crop.size > 0:
+            right_pct_source = temp_crop
+
+    # 95th PERCENTILE (T_Hotspot) CALCULATION - USES SCOPED SOURCE
+    hotspot_thresh_left_px = np.percentile(left_pct_source, hotspot_pct)
+    hotspot_thresh_right_px = np.percentile(right_pct_source, hotspot_pct)
+
+    # Hotspot pixels are those within the SCOPED SOURCE array that meet the threshold
+    left_hotspots_px = left_pct_source[left_pct_source >= hotspot_thresh_left_px]
+    right_hotspots_px = right_pct_source[right_pct_source >= hotspot_thresh_right_px]
 
     # MAX PIXEL VALUES IN HOTSPOT AREA
     left_hotspot_max_px = float(np.max(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
@@ -134,6 +164,8 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     }
 
 # -------------------- TEXT SUMMARY --------------------
+# (The rest of the helper functions remain unchanged)
+
 def generate_text_explanation(
     mean_left, mean_right, significant_diff_ratio,
     delta_left_max, delta_right_max,
@@ -504,6 +536,15 @@ def main():
             left_breast_box, right_breast_box = None, None
             detections_list = []
             
+            # --- NEW: Variables to track the hottest YOLO hotspot box coordinates ---
+            hottest_left_hotspot_box = None
+            hottest_right_hotspot_box = None
+            max_left_hotspot_temp = -float('inf')
+            max_right_hotspot_temp = -float('inf')
+            
+            # Grayscale image needed for finding max temp for scoping
+            image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float32)
+
             for result in results:
                 for det in result.boxes.data:
                     x1, y1, x2, y2, conf, class_idx = det.cpu().numpy()
@@ -514,6 +555,26 @@ def main():
                         left_breast_box = box
                     elif "right" in class_name.lower() and "hotspot" not in class_name.lower():
                         right_breast_box = box
+                    
+                    # --- NEW: Logic to find the single hottest YOLO hotspot box ---
+                    if "hotspot" in class_name.lower():
+                        # Boundary checks for crop safety
+                        h, w = image_gray.shape[:2]
+                        x1_int, y1_int, x2_int, y2_int = map(int, box)
+                        x1_int = max(0, min(w, x1_int)); x2_int = max(0, min(w, x2_int))
+                        y1_int = max(0, min(h, y1_int)); y2_int = max(0, min(h, y2_int))
+                        
+                        det_roi = image_gray[y1_int:y2_int, x1_int:x2_int]
+                        
+                        if det_roi.size > 0:
+                            current_max_temp = pixel_to_temp(np.max(det_roi))
+                            
+                            if "left" in class_name.lower() and current_max_temp > max_left_hotspot_temp:
+                                max_left_hotspot_temp = current_max_temp
+                                hottest_left_hotspot_box = box
+                            elif "right" in class_name.lower() and current_max_temp > max_right_hotspot_temp:
+                                max_right_hotspot_temp = current_max_temp
+                                hottest_right_hotspot_box = box
 
                     detections_list.append({"box": box, "conf": conf, "class_name": class_name})
 
@@ -522,7 +583,11 @@ def main():
                 return
             else:
                 try:
-                    stats = calculate_asymmetry(rgb_img, left_breast_box, right_breast_box)
+                    # --- MODIFIED CALL: Pass the hottest YOLO box for percentile scoping ---
+                    stats = calculate_asymmetry(
+                        rgb_img, left_breast_box, right_breast_box,
+                        hottest_left_hotspot_box, hottest_right_hotspot_box
+                    )
 
                     if stats is None:
                         return 

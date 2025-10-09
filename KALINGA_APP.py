@@ -23,7 +23,7 @@ MIN_TEMP = 32.0
 MAX_TEMP = 41.0
 HOTSPOT_PCT = 99.99
 MIN_DELTA_FOR_HOTSPOT = 0.2
-MAX_DT_THRESHOLD = 3.0
+MAX_DT_THRESHOLD = 2.0
 
 # --- UTILITY FUNCTIONS ---
 @st.cache_resource
@@ -219,9 +219,9 @@ def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, st
         )
 
     if hotspot_count > 1:
-        if delta_max > 2:
+        if delta_max > 1.34:
             detail = "significant temperature difference"
-        elif delta_max > 1:
+        elif delta_max > 0.67:
             detail = "moderate temperature difference"
         else:
             detail = "minimal temperature difference"
@@ -259,23 +259,23 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
         
         # COLOUR THRESHOLDS
         if score_clamped < 0.33:
-            fill_color = "green"
-        elif score_clamped < 0.66:
             fill_color = "orange"
-        else:
+        elif score_clamped < 0.66:
             fill_color = "red"
+        else:
+            fill_color = "maroon"
 
         ax.add_patch(Rectangle((bar_x, bar_y), bar_width * score_clamped, bar_height, color=fill_color))
         ax.text(0.5, bar_y + bar_height + label_offset,
-                f"{side_label} Breast Asymmetry: $\Delta T$={delta:.2f}$^\circ C$ ({percentage:.1f}%)", 
+                f"{side_label} Breast Asymmetry: $\Delta T$={delta:.2f}$^\circ C$", 
                 ha="center", va="bottom", fontsize=14)
     else:
         ax.text(0.5, bar_y + bar_height + label_offset,
                 f"{side_label} Breast Asymmetry: 0% (No Hotspot Detected)", 
                 ha="center", va="bottom", fontsize=14, color="gray")
 
-    ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="green")
-    ax.text(bar_x + bar_width, bar_y - 0.05, f"{MAX_DT}$^\circ C$ - High", ha="right", va="top", fontsize=10, color="red")
+    ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="orange")
+    ax.text(bar_x + bar_width, bar_y - 0.05, f"{MAX_DT}$^\circ C$ - High", ha="right", va="top", fontsize=10, color="maroon")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -660,8 +660,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
-
-
-
-

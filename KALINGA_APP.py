@@ -477,7 +477,7 @@ def main():
     st.markdown("[DESCRIPTION TOLLLL]")
     st.markdown("---")
 
-    uploaded_file = st.file_uploader("Upload a thermogram (blue-red palette)...", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Upload a certified breast thermogram (blue-red palette only)", type=["jpg", "jpeg", "png"])
 
     model = load_model(MODEL_PATH)
     if model is None:
@@ -585,4 +585,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 

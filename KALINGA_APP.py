@@ -10,7 +10,7 @@ import matplotlib.gridspec as gridspec
 from PIL import Image
 import io
 
-# Set Streamlit page configuration
+# STREAMLIT STARTUP
 st.set_page_config(
     page_title="KALINGA",
     layout="wide",
@@ -22,12 +22,10 @@ MODEL_PATH = "KALINGA_MODEL_FINAL.pt"
 MIN_TEMP = 32.0
 MAX_TEMP = 41.0
 HOTSPOT_PCT = 95.0
-# The threshold for a true thermal anomaly
 MIN_DELTA_FOR_HOTSPOT = 0.2 
-MAX_DT_THRESHOLD = 3.0 # Maximum delta T for the bar chart percentage calculation
+MAX_DT_THRESHOLD = 3.0
 
 # --- UTILITY FUNCTIONS ---
-
 @st.cache_resource
 def load_model(path):
     """Load the YOLO model, cached for efficiency."""
@@ -43,8 +41,6 @@ def pixel_to_temp(pixel_val, min_temp=MIN_TEMP, max_temp=MAX_TEMP):
     return min_temp + (pixel_val / 255.0) * (max_temp - min_temp)
 
 # -------------------- ASYMMETRY ANALYSIS --------------------
-# (The implementation of calculate_asymmetry remains the same)
-
 def calculate_asymmetry(image_rgb, left_box, right_box,
                         hotspot_pct=HOTSPOT_PCT,
                         min_delta_for_hotspot=MIN_DELTA_FOR_HOTSPOT,
@@ -88,25 +84,24 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     left_hotspots_px = left_roi_gray[left_roi_gray >= hotspot_thresh_left_px]
     right_hotspots_px = right_roi_gray[right_roi_gray >= hotspot_thresh_right_px]
 
-    # Calculate max pixel values inside the hotspot area
+    # MAX PIXEL VALUES IN HOTSPOT AREA
     left_hotspot_max_px = float(np.max(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
     right_hotspot_max_px = float(np.max(right_hotspots_px)) if right_hotspots_px.size > 0 else 0.0
     left_hotspot_mean_px = float(np.mean(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
     right_hotspot_mean_px = float(np.mean(right_hotspots_px)) if right_hotspots_px.size > 0 else 0.0
 
-    # Convert to temperature
+    # TEMPERATURE CONVERSION
     left_hotspot_max_temp = pixel_to_temp(left_hotspot_max_px)
     right_hotspot_max_temp = pixel_to_temp(right_hotspot_max_px)
     left_hotspot_mean_temp = pixel_to_temp(left_hotspot_mean_px)
     right_hotspot_mean_temp = pixel_to_temp(right_hotspot_mean_px)
 
-    # Calculate Delta T (This calculation is always done and can result in > 0.2)
+    # DELTA T CALCULATIONS
     delta_left_max = left_hotspot_max_temp - median_left
     delta_right_max = right_hotspot_max_temp - median_right
     delta_left_mean = left_hotspot_mean_temp - median_left
     delta_right_mean = right_hotspot_mean_temp - median_right
 
-    # Hotspot size (only count if it meets the minimum delta T)
     left_hotspot_size = int(left_hotspots_px.size) if (left_hotspots_px.size > 0 and delta_left_max > min_delta_for_hotspot) else 0
     right_hotspot_size = int(right_hotspots_px.size) if (right_hotspots_px.size > 0 and delta_right_max > min_delta_for_hotspot) else 0
 
@@ -140,14 +135,13 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
         "significant_diff_ratio": significant_diff_ratio
     }
 
-# -------------------- TEXT SUMMARY (FINAL FIX) --------------------
+# -------------------- TEXT SUMMARY --------------------
 def generate_text_explanation(
     mean_left, mean_right, significant_diff_ratio,
     delta_left_max, delta_right_max,
-    hotspot_any_detected # This is the ultimate combined flag (delta T + YOLO detection)
+    hotspot_any_detected
 ):
     
-    # 💥 CRITICAL FIX: If the combined check is False, we use the "no anomaly" text.
     if not hotspot_any_detected:
         return (
             "Thermal analysis shows no detectable hotspot temperature rise. "
@@ -155,10 +149,7 @@ def generate_text_explanation(
             "However, regular screening is strongly advised, especially if you experience any symptoms. "
             "Consider repeating the thermogram analysis for continued monitoring."
         )
-
-    # --- Only execute this block if a significant, confirmed hotspot IS detected ---
     
-    # Use the detected delta_max values for reporting
     dt_left_report = max(0, delta_left_max)
     dt_right_report = max(0, delta_right_max)
 
@@ -180,15 +171,13 @@ def generate_text_explanation(
             f"(ΔT Left: {dt_left_report:.2f}°C, ΔT Right: {dt_right_report:.2f}°C). "
         )
     else:
-        # Fallback for very small delta T (shouldn't be reached if hotspot_any_detected is True)
         hotspot_insight = (
             f"Minimal hotspot temperature rise detected "
             f"(ΔT Left: {dt_left_report:.2f}°C, ΔT Right: {dt_right_report:.2f}°C). "
         )
 
     technical_details = distribution_insight + hotspot_insight
-    
-    # If we reached this point, hotspot_any_detected MUST be True
+
     return (
         "Hotspot regions detected during analysis. "
         f"{technical_details}Immediate consultation with a medical professional is strongly advised."
@@ -198,14 +187,12 @@ def generate_text_explanation(
 def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, std):
     """Generates the detailed per-breast interpretation text from the original script."""
     
-    # Use the simple logic: if it's not detected (or delta is too low), return clean text
     if not hotspot_detected or delta_max <= MIN_DELTA_FOR_HOTSPOT:
         return (
             f"In the {side} breast region, thermal analysis shows no detectable anomaly "
             f"or hotspot temperature rise but pattern variation of $\pm{std:.2f}^\circ C$ is observed."
         )
 
-    # Hotspot(s) detected (delta_max > MIN_DELTA_FOR_HOTSPOT)
     if hotspot_count > 1:
         if delta_max > 2:
             detail = "significant temperature difference"
@@ -232,7 +219,6 @@ def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, st
         )
 
 # -------------------- PLOTTING UTILITIES --------------------
-
 def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_DT_THRESHOLD):
     """
     Draws a temperature delta bar and calculates the breast-specific percentage,
@@ -243,16 +229,14 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
     label_offset = 0.02
     bar_y = 0.75
 
-    # Always draw the light gray background bar
     ax.add_patch(Rectangle((bar_x, bar_y), bar_width, bar_height, color="lightgray"))
 
-    # Only fill the bar if a true hotspot (delta T > threshold) is detected
     if hotspot_detected and delta > MIN_DELTA_FOR_HOTSPOT: 
         delta_clamped = max(0.0, float(delta))
-        score_clamped = min(delta_clamped / MAX_DT, 1.0) # Ensure score is max 1.0
+        score_clamped = min(delta_clamped / MAX_DT, 1.0)
         percentage = score_clamped * 100.0
         
-        # Color thresholds based on percentage of MAX_DT_THRESHOLD (3.0C)
+        # COLOUR THRESHOLDS
         if score_clamped < 0.33:
             fill_color = "green"
         elif score_clamped < 0.66:
@@ -261,16 +245,13 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
             fill_color = "red"
 
         ax.add_patch(Rectangle((bar_x, bar_y), bar_width * score_clamped, bar_height, color=fill_color))
-        # Label above the bar for detected hotspot
         ax.text(0.5, bar_y + bar_height + label_offset,
                 f"{side_label} Breast Asymmetry: $\Delta T$={delta:.2f}$^\circ C$ ({percentage:.1f}%)", 
                 ha="center", va="bottom", fontsize=14)
     else:
-        # Label above the bar for no hotspot detected (consistent with no asymmetry)
         ax.text(0.5, bar_y + bar_height + label_offset,
                 f"{side_label} Breast Asymmetry: 0% (No Hotspot Detected)", 
                 ha="center", va="bottom", fontsize=14, color="gray")
-
 
     ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="green")
     ax.text(bar_x + bar_width, bar_y - 0.05, f"{MAX_DT}$^\circ C$ - High", ha="right", va="top", fontsize=10, color="red")
@@ -278,7 +259,6 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
-
 
 def find_hottest_hotspot_detection(detections, side_tag, image_gray):
     """
@@ -304,31 +284,25 @@ def find_hottest_hotspot_detection(detections, side_tag, image_gray):
     return hottest_det, max_temp_val
 
 def create_report_figure(rgb_img, detections, stats):
-    """Generates the full Matplotlib report figure with all fixes."""
 
-    # Unpack stats and determine raw thermal detection status
     delta_left_max = max(0, stats.get("delta_left_max", 0.0))
     delta_right_max = max(0, stats.get("delta_right_max", 0.0))
     
-    # Hotspot detection based on *calculated* thermal metric (must be > MIN_DELTA_FOR_HOTSPOT)
     is_thermally_hotspot_left = delta_left_max > MIN_DELTA_FOR_HOTSPOT
     is_thermally_hotspot_right = delta_right_max > MIN_DELTA_FOR_HOTSPOT
     
-    # Hotspot counts (from YOLO detections)
     left_hotspot_count = sum(1 for d in detections if "hotspot-left" in d["class_name"].lower())
     right_hotspot_count = sum(1 for d in detections if "hotspot-right" in d["class_name"].lower())
     
-    # Hotspot detection based on *YOLO detection* (must find a box)
+    # BOX OVERRIDE
     hotspot_detected_by_yolo_left = left_hotspot_count > 0
     hotspot_detected_by_yolo_right = right_hotspot_count > 0
 
-    # 💥 FINAL FLAG FOR REPORTING (MUST be confirmed by both thermal metric AND YOLO detection)
+    # HOTSPOTS MUST BYPASS THERMAL THRESHOLD AND YOLO DETECTIONS
     hotspot_left_detected = is_thermally_hotspot_left and hotspot_detected_by_yolo_left
     hotspot_right_detected = is_thermally_hotspot_right and hotspot_detected_by_yolo_right
     hotspot_any_detected = hotspot_left_detected or hotspot_right_detected
 
-
-    # Metrics that need conditional reporting
     median_left = stats.get("median_left", 0.0)
     median_right = stats.get("median_right", 0.0)
     mean_left = stats.get("mean_left", 0.0)
@@ -337,29 +311,22 @@ def create_report_figure(rgb_img, detections, stats):
     std_right = stats.get("std_right", 0.0)
     significant_diff_ratio = stats.get("significant_diff_ratio", 0.0)
 
-    # CRITICAL FIX: Ensure Max Hotspot Temp and Max Delta T are 0.00 if the final flag is False
     left_hotspot_max_temp = stats.get("left_hotspot_max_temp", 0.0)
     right_hotspot_max_temp = stats.get("right_hotspot_max_temp", 0.0)
     
-    # These display variables MUST be used when printing the metric values in the report
     display_delta_left = delta_left_max if hotspot_left_detected else 0.00
     display_delta_right = delta_right_max if hotspot_right_detected else 0.00
     display_max_temp_left = left_hotspot_max_temp if hotspot_left_detected else 0.00
     display_max_temp_right = right_hotspot_max_temp if hotspot_right_detected else 0.00
 
-
-    # Generate texts
-    # IMPORTANT: Text explanation now only needs the simple binary flag
     text_summary = generate_text_explanation(
         mean_left, mean_right, significant_diff_ratio,
-        delta_left_max, delta_right_max, # Raw delta T is still passed for reporting, but only used if hotspot_any_detected is True
+        delta_left_max, delta_right_max,
         hotspot_any_detected
     )
-    # The interpretation text uses the final conditional flag for its output text.
     interpretation_left = get_interpretation_text("left", hotspot_left_detected, left_hotspot_count, delta_left_max, std_left)
     interpretation_right = get_interpretation_text("right", hotspot_right_detected, right_hotspot_count, delta_right_max, std_right)
 
-    # Convert to grayscale for B&W plot
     gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
     
     # -------------------- PLOTTING WITH 3-ROW GRID --------------------
@@ -367,14 +334,13 @@ def create_report_figure(rgb_img, detections, stats):
     gs = gridspec.GridSpec(3, 2, figure=fig, height_ratios=[1.5, 0.75, 1], width_ratios=[1, 1])
     plt.subplots_adjust(hspace=0.25, top=0.95, bottom=0.05)
 
-    # === YOLO DETECTIONS (LEFT TOP) ===
+    # === YOLO DETECTIONS ===
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.imshow(rgb_img)
     for det in detections:
         x1, y1, x2, y2 = det["box"]
         class_name = det["class_name"]
         conf = det["conf"]
-        # Use the final conditional flag for drawing the *hotspot* box/label (breast boxes are always drawn)
         color = "red" if "hotspot" in class_name.lower() and hotspot_any_detected else "green"
         rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor=color, facecolor="none")
         ax1.add_patch(rect)
@@ -382,7 +348,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax1.set_title("YOLOv11 Mirrored Breast and Hotspot Detections", fontsize=16)
     ax1.axis("off")
 
-    # === MAXIMUM HOTSPOT TEMPERATURE (RIGHT TOP) ===
+    # === MAXIMUM HOTSPOT TEMPERATURE ===
     ax2 = fig.add_subplot(gs[0, 1])
     ax2.imshow(gray_img, cmap="gray")
     ax2.set_title("Maximum Hotspot Temperature", fontsize=16)
@@ -394,11 +360,9 @@ def create_report_figure(rgb_img, detections, stats):
         if hottest_left_det:
             x1, y1, x2, y2 = map(int, hottest_left_det["box"])
             
-            # Draw box
             rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor="red", facecolor="none")
             ax2.add_patch(rect)
             
-            # Find and draw the hottest pixel location (RED DOT)
             hotspot_region = gray_img[y1:y2, x1:x2]
             max_loc = np.unravel_index(np.argmax(hotspot_region), hotspot_region.shape)
             hot_y, hot_x = max_loc
@@ -406,7 +370,6 @@ def create_report_figure(rgb_img, detections, stats):
             hot_y += y1
             ax2.plot(hot_x, hot_y, "ro", markersize=6)
             
-            # Label
             ax2.text(
                 x1, y1 - 15,
                 f"CV2 Luminosity: {max_temp_cv2_left:.2f}°C\nROI Percentile: {left_hotspot_max_temp:.2f}°C",
@@ -420,11 +383,9 @@ def create_report_figure(rgb_img, detections, stats):
         if hottest_right_det:
             x1, y1, x2, y2 = map(int, hottest_right_det["box"])
 
-            # Draw box
             rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor="red", facecolor="none")
             ax2.add_patch(rect)
             
-            # Find and draw the hottest pixel location (RED DOT)
             hotspot_region = gray_img[y1:y2, x1:x2]
             max_loc = np.unravel_index(np.argmax(hotspot_region), hotspot_region.shape)
             hot_y, hot_x = max_loc
@@ -432,7 +393,6 @@ def create_report_figure(rgb_img, detections, stats):
             hot_y += y1
             ax2.plot(hot_x, hot_y, "ro", markersize=6)
 
-            # Label (shifted slightly for clarity)
             ax2.text(
                 x1, y1 - 15,
                 f"CV2 Luminosity: {max_temp_cv2_right:.2f}°C\nROI Percentile: {right_hotspot_max_temp:.2f}°C",
@@ -441,15 +401,14 @@ def create_report_figure(rgb_img, detections, stats):
             )
 
 
-    # === LEFT METRICS (LEFT MIDDLE) ===
+    # === LEFT METRICS ===
     ax3 = fig.add_subplot(gs[1, 0])
     ax3.set_title("Left Breast Metrics", fontsize=16, fontweight='bold', pad=4)
-    # Passed delta_left_max (raw) to the bar for correct coloring, but internal bar text uses conditional
     draw_asymmetry_bar(ax3, "Left", delta_left_max, hotspot_detected=hotspot_left_detected)
 
     y_start, line_spacing = 0.50, 0.08 
     
-    # 1. Max Hotspot Temp (Uses conditionally zeroed display_max_temp_left)
+    # 1. Max Hotspot Temp
     ax3.text(0.25, y_start, "Max Hotspot Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start, f"{display_max_temp_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
@@ -457,7 +416,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.25, y_start - line_spacing, "Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - line_spacing, f"{median_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
-    # 3. Max Hotspot - Median Breast Temp (Uses conditionally zeroed display_delta_left)
+    # 3. Max Hotspot - Median Breast Temp
     ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 2*line_spacing, f"{display_delta_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
@@ -465,28 +424,26 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.25, y_start - 3*line_spacing, "Mean Breast Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 3*line_spacing, f"{mean_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
-    # 5. No. of Hotspots Detected / Temperature Variation (Conditional display)
+    # 5. No. of Hotspots Detected / Temperature Variation (CONDITIONAL)
     if hotspot_left_detected:
         ax3.text(0.25, y_start - 4*line_spacing, "No. of Hotspots Detected:", fontsize=12, va="center", ha="left")
         ax3.text(0.75, y_start - 4*line_spacing, f"{left_hotspot_count}", fontsize=12, va="center", ha="right")
-    else: # If no hotspot, display Temperature Variation (Std Dev)
+    else:
         ax3.text(0.25, y_start - 4*line_spacing, "Temperature Variation:", fontsize=12, va="center", ha="left")
         ax3.text(0.75, y_start - 4*line_spacing, f"$\pm{std_left:.2f}^\circ C$", fontsize=12, va="center", ha="right")
 
-    # Text Interpretation 
     wrapped_left = textwrap.fill(interpretation_left, width=60)
     ax3.text(0.5, 0.05, wrapped_left, fontsize=12, va="top", ha="center")
     ax3.axis("off")
 
-    # === RIGHT METRICS (RIGHT MIDDLE) ===
+    # === RIGHT METRICS ===
     ax4 = fig.add_subplot(gs[1, 1])
     ax4.set_title("Right Breast Metrics", fontsize=16, fontweight='bold', pad=4)
-    # Passed delta_right_max (raw) to the bar for correct coloring, but internal bar text uses conditional
     draw_asymmetry_bar(ax4, "Right", delta_right_max, hotspot_detected=hotspot_right_detected)
 
     y_start, line_spacing = 0.50, 0.08
     
-    # 1. Max Hotspot Temp (Uses conditionally zeroed display_max_temp_right)
+    # 1. Max Hotspot Temp
     ax4.text(0.25, y_start, "Max Hotspot Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start, f"{display_max_temp_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
@@ -494,7 +451,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.25, y_start - line_spacing, "Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - line_spacing, f"{median_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
-    # 3. Max Hotspot - Median Breast Temp (Uses conditionally zeroed display_delta_right)
+    # 3. Max Hotspot - Median Breast Temp
     ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 2*line_spacing, f"{display_delta_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
@@ -502,20 +459,19 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.25, y_start - 3*line_spacing, "Mean Breast Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 3*line_spacing, f"{mean_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
-    # 5. No. of Hotspots Detected / Temperature Variation (Conditional display)
+    # 5. No. of Hotspots Detected / Temperature Variation (CONDITIONAL)
     if hotspot_right_detected:
         ax4.text(0.25, y_start - 4*line_spacing, "No. of Hotspots Detected:", fontsize=12, va="center", ha="left")
         ax4.text(0.75, y_start - 4*line_spacing, f"{right_hotspot_count}", fontsize=12, va="center", ha="right")
-    else: # If no hotspot, display Temperature Variation (Std Dev)
+    else:
         ax4.text(0.25, y_start - 4*line_spacing, "Temperature Variation:", fontsize=12, va="center", ha="left")
         ax4.text(0.75, y_start - 4*line_spacing, f"$\pm{std_right:.2f}^\circ C$", fontsize=12, va="center", ha="right")
 
-    # Text Interpretation
     wrapped_right = textwrap.fill(interpretation_right, width=60)
     ax4.text(0.5, 0.05, wrapped_right, fontsize=12, va="top", ha="center")
     ax4.axis("off")
 
-    # === DIAGNOSTIC SUMMARY (BOTTOM) ===
+    # === DIAGNOSTIC SUMMARY ===
     ax_summary = fig.add_subplot(gs[2, :])
     ax_summary.axis("off")
     ax_summary.text(0.5, 0.85, "Diagnostic Summary", fontsize=25, fontweight='bold', ha="center")
@@ -546,9 +502,7 @@ def main():
             st.error("Could not decode image.")
             return
 
-        # Flip the image horizontally before processing
-        image = cv2.flip(image, 1) # 1 for horizontal flip
-
+        image = cv2.flip(image, 1)
         rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         with st.spinner("Running YOLOv11 detection and thermal analysis..."):
@@ -580,48 +534,39 @@ def main():
                     if stats is None:
                         return 
                     
-                    # Determine true hotspot detection status for accurate reporting
                     delta_left_max = max(0, stats.get("delta_left_max", 0.0))
                     delta_right_max = max(0, stats.get("delta_right_max", 0.0))
                     
-                    # Check for YOLO-detected hotspots
                     left_hotspot_count = sum(1 for d in detections_list if "hotspot-left" in d["class_name"].lower())
                     right_hotspot_count = sum(1 for d in detections_list if "hotspot-right" in d["class_name"].lower())
                     
-                    # FINAL LOGIC: A hotspot is DETECTED only if the metric is high AND YOLO found a box.
                     hotspot_left_detected = (delta_left_max > MIN_DELTA_FOR_HOTSPOT) and (left_hotspot_count > 0)
                     hotspot_right_detected = (delta_right_max > MIN_DELTA_FOR_HOTSPOT) and (right_hotspot_count > 0)
 
-                    # 4. Generate and Display Report
                     fig = create_report_figure(rgb_img, detections_list, stats)
                     st.pyplot(fig)
 
                     original_name = uploaded_file.name.rsplit('.', 1)[0]
                     custom_filename = f"thermal_analysis_report_{original_name}.png"
 
-                    # 5. Download Button: Centered using st.columns
                     buf = io.BytesIO()
                     fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
-                    
-                    # Create three columns: left_space, middle (for button), right_space
                     col1, col2, col3 = st.columns([1, 1, 1])
 
-                    with col2: # Place the button in the middle column
+                    with col2:
                         st.download_button(
                             label="Download Full Analysis Report",
                             data=buf.getvalue(),
                             file_name=custom_filename,
                             mime="image/png",
-                            use_container_width=True # Ensure button fills the center column
+                            use_container_width=True
                         )
                     
                     st.markdown("---")
                     
-                    # 6. Raw Metrics Subheader:
                     st.markdown("<h2 style='text-align: center;'>Raw Asymmetry Metrics</h2>", unsafe_allow_html=True)
                     st.markdown("")
                     
-                    # Calculate conditional max/delta values for the table display
                     max_temp_L = stats["left_hotspot_max_temp"] if hotspot_left_detected else 0.00
                     max_temp_R = stats["right_hotspot_max_temp"] if hotspot_right_detected else 0.00
                     delta_max_L = max(0, stats["delta_left_max"]) if hotspot_left_detected else 0.00
@@ -629,7 +574,7 @@ def main():
                     delta_mean_L = max(0, stats["delta_left_mean"]) if hotspot_left_detected else 0.00
                     delta_mean_R = max(0, stats["delta_right_mean"]) if hotspot_right_detected else 0.00
 
-                    # Display Raw Metrics Table (Non-centered, full-width Streamlit markdown table)
+                    # RAW METRICS TABLE
                     st.markdown(f"""
                         | Metric | Left Breast | Right Breast | Bilateral |
                         | :--- | :--- | :--- | :--- |
@@ -651,5 +596,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
-

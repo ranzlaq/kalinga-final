@@ -319,9 +319,9 @@ def create_report_figure(rgb_img, detections, stats):
     gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
     
     # -------------------- PLOTTING WITH 3-ROW GRID --------------------
-    fig = plt.figure(figsize=(16, 12))
+    fig = plt.figure(figsize=(16, 14))
     gs = gridspec.GridSpec(3, 2, figure=fig, height_ratios=[1.5, 0.75, 1], width_ratios=[1, 1])
-    plt.subplots_adjust(hspace=0.25, top=0.90, bottom=0.02)
+    plt.subplots_adjust(hspace=0.25, top=0.95, bottom=0.05)
 
     # === YOLO DETECTIONS ===
     ax1 = fig.add_subplot(gs[0, 0])
@@ -585,6 +585,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 

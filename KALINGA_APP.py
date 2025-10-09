@@ -463,7 +463,7 @@ def create_report_figure(rgb_img, detections, stats):
     # === DIAGNOSTIC SUMMARY ===
     ax_summary = fig.add_subplot(gs[2, :])
     ax_summary.axis("off")
-    ax_summary.text(0.5, 0.6, "Diagnostic Summary", fontsize=25, fontweight='bold', ha="center")
+    ax_summary.text(0.5, 0.7, "Diagnostic Summary", fontsize=25, fontweight='bold', ha="center")
     wrapped_summary = textwrap.fill(text_summary, width=120)
     ax_summary.text(0.5, 0.4, wrapped_summary, fontsize=16, va="center", ha="center")
 
@@ -585,6 +585,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 

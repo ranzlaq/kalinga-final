@@ -334,7 +334,7 @@ def create_report_figure(rgb_img, detections, stats):
         rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor=color, facecolor="none")
         ax1.add_patch(rect)
         ax1.text(x1, y1 - 5, f"{class_name}: {conf:.2f}", color='white', fontsize=8, bbox=dict(facecolor=color, alpha=0.7))
-    ax1.set_title("YOLOv11 Mirrored Breast and Hotspot Detections", fontsize=16)
+    ax1.set_title("Mirrored Thermogram with YOLOv11 Detections", fontsize=16)
     ax1.axis("off")
 
     # === MAXIMUM HOTSPOT TEMPERATURE ===

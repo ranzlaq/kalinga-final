@@ -444,7 +444,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.75, y_start - line_spacing, f"{median_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 2*line_spacing, f"{display_delta_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -479,7 +479,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.75, y_start - line_spacing, f"{median_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 2*line_spacing, f"{display_delta_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -660,4 +660,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 

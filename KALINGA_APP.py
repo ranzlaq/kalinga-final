@@ -264,12 +264,12 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
         # Label above the bar for detected hotspot
         ax.text(0.5, bar_y + bar_height + label_offset,
                 f"{side_label} Breast Asymmetry: $\Delta T$={delta:.2f}$^\circ C$ ({percentage:.1f}%)", 
-                ha="center", va="bottom", fontsize=14, fontweight='bold')
+                ha="center", va="bottom", fontsize=14)
     else:
         # Label above the bar for no hotspot detected (consistent with no asymmetry)
         ax.text(0.5, bar_y + bar_height + label_offset,
                 f"{side_label} Breast Asymmetry: 0% (No Hotspot Detected)", 
-                ha="center", va="bottom", fontsize=14, fontweight='bold', color="gray")
+                ha="center", va="bottom", fontsize=14, color="gray")
 
 
     ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="green")
@@ -443,7 +443,7 @@ def create_report_figure(rgb_img, detections, stats):
 
     # === LEFT METRICS (LEFT MIDDLE) ===
     ax3 = fig.add_subplot(gs[1, 0])
-    ax3.set_title("Left Breast Metrics", fontsize=16, pad=4)
+    ax3.set_title("Left Breast Metrics", fontsize=16, fontweight='bold', pad=4)
     # Passed delta_left_max (raw) to the bar for correct coloring, but internal bar text uses conditional
     draw_asymmetry_bar(ax3, "Left", delta_left_max, hotspot_detected=hotspot_left_detected)
 
@@ -480,7 +480,7 @@ def create_report_figure(rgb_img, detections, stats):
 
     # === RIGHT METRICS (RIGHT MIDDLE) ===
     ax4 = fig.add_subplot(gs[1, 1])
-    ax4.set_title("Right Breast Metrics", fontsize=16, pad=4)
+    ax4.set_title("Right Breast Metrics", fontsize=16, fontweight='bold', pad=4)
     # Passed delta_right_max (raw) to the bar for correct coloring, but internal bar text uses conditional
     draw_asymmetry_bar(ax4, "Right", delta_right_max, hotspot_detected=hotspot_right_detected)
 
@@ -518,7 +518,7 @@ def create_report_figure(rgb_img, detections, stats):
     # === DIAGNOSTIC SUMMARY (BOTTOM) ===
     ax_summary = fig.add_subplot(gs[2, :])
     ax_summary.axis("off")
-    ax_summary.text(0.5, 0.85, "Diagnostic Summary", fontsize=25, ha="center")
+    ax_summary.text(0.5, 0.85, "Diagnostic Summary", fontsize=25, fontweight='bold', ha="center")
     wrapped_summary = textwrap.fill(text_summary, width=120)
     ax_summary.text(0.5, 0.4, wrapped_summary, fontsize=16, va="center", ha="center")
 
@@ -648,3 +648,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+

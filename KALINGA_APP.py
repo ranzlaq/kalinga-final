@@ -596,6 +596,9 @@ def main():
                     fig = create_report_figure(rgb_img, detections_list, stats)
                     st.pyplot(fig)
 
+                    original_name = uploaded_file.name.rsplit('.', 1)[0]
+                    custom_filename = f"thermal_analysis_report_{original_name}.png"
+
                     # 5. Download Button: Centered using st.columns
                     buf = io.BytesIO()
                     fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
@@ -607,7 +610,7 @@ def main():
                         st.download_button(
                             label="Download Full Analysis Report",
                             data=buf.getvalue(),
-                            file_name="thermal_analysis_report.png",
+                            file_name=custom_filename,
                             mime="image/png",
                             use_container_width=True # Ensure button fills the center column
                         )
@@ -648,4 +651,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 

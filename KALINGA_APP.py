@@ -28,7 +28,6 @@ MAX_DT_THRESHOLD = 3.0
 # --- UTILITY FUNCTIONS ---
 @st.cache_resource
 def load_model(path):
-    """Load the YOLO model, cached for efficiency."""
     try:
         model = YOLO(path) 
         return model
@@ -37,7 +36,6 @@ def load_model(path):
         return None
 
 def pixel_to_temp(pixel_val, min_temp=MIN_TEMP, max_temp=MAX_TEMP):
-    """Converts a pixel value (0-255) to a temperature (°C)."""
     return min_temp + (pixel_val / 255.0) * (max_temp - min_temp)
 
 # -------------------- ASYMMETRY ANALYSIS --------------------
@@ -185,7 +183,6 @@ def generate_text_explanation(
 
 
 def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, std):
-    """Generates the detailed per-breast interpretation text from the original script."""
     
     if not hotspot_detected or delta_max <= MIN_DELTA_FOR_HOTSPOT:
         return (
@@ -220,10 +217,6 @@ def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, st
 
 # -------------------- PLOTTING UTILITIES --------------------
 def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_DT_THRESHOLD):
-    """
-    Draws a temperature delta bar and calculates the breast-specific percentage,
-    including colored sections and handling for 'no hotspot detected'.
-    """
     bar_x = 0.1
     bar_width, bar_height = 0.8, 0.1
     label_offset = 0.02
@@ -261,10 +254,6 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
     ax.axis("off")
 
 def find_hottest_hotspot_detection(detections, side_tag, image_gray):
-    """
-    Finds the specific hotspot detection box with the highest *internal* max temperature 
-    for the given side.
-    """
     hottest_det = None
     max_temp_val = -float('inf')
     
@@ -596,3 +585,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+

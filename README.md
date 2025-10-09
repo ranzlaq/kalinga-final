@@ -13,7 +13,7 @@ The project implements a mathematical model trained under the YOLO architecture 
 ## **STREAMLIT application**
 KALINGA is currently released as a web-browser application. Visit it here:
 
-[KALINGA APPLICATION](https://kalinga.streamlit.app)
+<a href="https://kalinga.streamlit.app" target="_blank">KALINGA Application</a>
 
 ## **GOOGLE COLAB notebook**
 The final KALINGA_MODEL_FINAL.pt is a YOLOv11 model trained under ultralytics architecture in determining the following classes annotated in RoboFlow: HOTSPOT-left, HOTSPOT-right, abnormal-left, abnormal-right, normal-left, normal-right. The notebook is not publicly available; a private request must be forwarded.

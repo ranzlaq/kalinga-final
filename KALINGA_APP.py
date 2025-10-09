@@ -444,7 +444,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.75, y_start - line_spacing, f"{median_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot Temp - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 2*line_spacing, f"{display_delta_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -479,7 +479,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.75, y_start - line_spacing, f"{median_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot Temp - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 2*line_spacing, f"{display_delta_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -643,8 +643,8 @@ def main():
                         | :--- | :--- | :--- | :--- |
                         | **Median Temp** | {stats["median_left"]:.2f} $^\circ C$ | {stats["median_right"]:.2f} $^\circ C$ | **Diff**: {abs(stats["median_left"] - stats["median_right"]):.2f} $^\circ C$ |
                         | **Mean Temp** | {stats["mean_left"]:.2f} $^\circ C$ | {stats["mean_right"]:.2f} $^\circ C$ | **Diff**: {abs(stats["mean_left"] - stats["mean_right"]):.2f} $^\circ C$ |
-                        | **cv2 Max Hotspot Temp** | {max_temp_abs_L:.2f} $^\circ C$ | {max_temp_abs_R:.2f} $^\circ C$ | N/A |
-                        | **ROI Max Hotspot Temp** | {max_temp_95_L:.2f} $^\circ C$ | {max_temp_95_R:.2f} $^\circ C$ | N/A |
+                        | **Max Hotspot Temp (cv2 Luminosity)** | {max_temp_abs_L:.2f} $^\circ C$ | {max_temp_abs_R:.2f} $^\circ C$ | N/A |
+                        | **Max Hotspot Temp (ROI Percentile)** | {max_temp_95_L:.2f} $^\circ C$ | {max_temp_95_R:.2f} $^\circ C$ | N/A |
                         | **Max $\Delta T$ (Hotspot - Median)** | {delta_max_L:.2f} $^\circ C$ | {delta_max_R:.2f} $^\circ C$ | N/A |
                         | **Mean $\Delta T$ (Hotspot - Median)** | {delta_mean_L:.2f} $^\circ C$ | {delta_mean_R:.2f} $^\circ C$ | N/A |
                         | **Temp Variation (Std Dev)** | $\pm{stats["std_left"]:.2f}$ $^\circ C$ | $\pm{stats["std_right"]:.2f}$ $^\circ C$ | N/A |
@@ -660,3 +660,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+

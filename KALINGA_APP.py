@@ -21,7 +21,7 @@ st.set_page_config(
 MODEL_PATH = "KALINGA_MODEL_FINAL.pt"
 MIN_TEMP = 32.0
 MAX_TEMP = 41.0
-HOTSPOT_PCT = 98.0
+HOTSPOT_PCT = 99.0
 MIN_DELTA_FOR_HOTSPOT = 0.2
 MAX_DT_THRESHOLD = 3.0
 
@@ -660,6 +660,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 

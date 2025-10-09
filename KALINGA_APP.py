@@ -39,7 +39,6 @@ def pixel_to_temp(pixel_val, min_temp=MIN_TEMP, max_temp=MAX_TEMP):
     return min_temp + (pixel_val / 255.0) * (max_temp - min_temp)
 
 # -------------------- ASYMMETRY ANALYSIS --------------------
-# MODIFIED SIGNATURE: Added hottest_hotspot_box arguments
 def calculate_asymmetry(image_rgb, left_box, right_box,
                         hottest_left_hotspot_box=None, hottest_right_hotspot_box=None,
                         hotspot_pct=HOTSPOT_PCT,
@@ -79,18 +78,14 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     median_left = pixel_to_temp(median_left_px)
     median_right = pixel_to_temp(median_right_px)
 
-    # --- NEW LOGIC: Determine the source array for 95th Percentile ---
-    
-    # Default to full ROI
+    # --- LOGIC: Determine the source array for 95th Percentile (Scoped) ---
     left_pct_source = left_roi_gray
     right_pct_source = right_roi_gray
 
-    # If a specific hottest YOLO box is provided, use that for percentile calculation
     if hottest_left_hotspot_box is not None:
         hl_x1, hl_y1, hl_x2, hl_y2 = map(int, hottest_left_hotspot_box)
         hl_x1 = max(0, min(w-1, hl_x1)); hl_x2 = max(0, min(w, hl_x2))
         hl_y1 = max(0, min(h-1, hl_y1)); hl_y2 = max(0, min(h, hl_y2))
-        
         temp_crop = image_gray[hl_y1:hl_y2, hl_x1:hl_x2]
         if temp_crop.size > 0:
             left_pct_source = temp_crop
@@ -99,34 +94,37 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
         hr_x1, hr_y1, hr_x2, hr_y2 = map(int, hottest_right_hotspot_box)
         hr_x1 = max(0, min(w-1, hr_x1)); hr_x2 = max(0, min(w, hr_x2))
         hr_y1 = max(0, min(h-1, hr_y1)); hr_y2 = max(0, min(h, hr_y2))
-        
         temp_crop = image_gray[hr_y1:hr_y2, hr_x1:hr_x2]
         if temp_crop.size > 0:
             right_pct_source = temp_crop
 
-    # 95th PERCENTILE (T_Hotspot) CALCULATION - USES SCOPED SOURCE
+    # 1. CALCULATE TRUE 95th PERCENTILE (T_Hotspot for Delta T)
     hotspot_thresh_left_px = np.percentile(left_pct_source, hotspot_pct)
     hotspot_thresh_right_px = np.percentile(right_pct_source, hotspot_pct)
 
-    # Hotspot pixels are those within the SCOPED SOURCE array that meet the threshold
+    # 2. CALCULATE ABSOLUTE MAX PIXEL (T_CV2 Luminosity)
+    left_absolute_max_px = float(np.max(left_pct_source)) if left_pct_source.size > 0 else 0.0
+    right_absolute_max_px = float(np.max(right_pct_source)) if right_pct_source.size > 0 else 0.0
+
+    # Hotspot pixels (for calculating mean of hotspots, and size)
     left_hotspots_px = left_pct_source[left_pct_source >= hotspot_thresh_left_px]
     right_hotspots_px = right_pct_source[right_pct_source >= hotspot_thresh_right_px]
 
-    # MAX PIXEL VALUES IN HOTSPOT AREA
-    left_hotspot_max_px = float(np.max(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
-    right_hotspot_max_px = float(np.max(right_hotspots_px)) if right_hotspots_px.size > 0 else 0.0
+    # MEAN PIXEL VALUES OF THE HOTSPOT PIXELS (Used for Delta T Mean)
     left_hotspot_mean_px = float(np.mean(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
     right_hotspot_mean_px = float(np.mean(right_hotspots_px)) if right_hotspots_px.size > 0 else 0.0
 
     # TEMPERATURE CONVERSION
-    left_hotspot_max_temp = pixel_to_temp(left_hotspot_max_px)
-    right_hotspot_max_temp = pixel_to_temp(right_hotspot_max_px)
+    left_95th_percentile_temp = pixel_to_temp(hotspot_thresh_left_px) # <-- New T_Hotspot
+    right_95th_percentile_temp = pixel_to_temp(hotspot_thresh_right_px) # <-- New T_Hotspot
+    left_absolute_max_temp = pixel_to_temp(left_absolute_max_px) # <-- New T_CV2 Max
+    right_absolute_max_temp = pixel_to_temp(right_absolute_max_px) # <-- New T_CV2 Max
     left_hotspot_mean_temp = pixel_to_temp(left_hotspot_mean_px)
     right_hotspot_mean_temp = pixel_to_temp(right_hotspot_mean_px)
 
-    # DELTA T CALCULATIONS
-    delta_left_max = left_hotspot_max_temp - median_left
-    delta_right_max = right_hotspot_max_temp - median_right
+    # DELTA T CALCULATIONS - NOW USES THE TRUE 95TH PERCENTILE
+    delta_left_max = left_95th_percentile_temp - median_left
+    delta_right_max = right_95th_percentile_temp - median_right
     delta_left_mean = left_hotspot_mean_temp - median_left
     delta_right_mean = right_hotspot_mean_temp - median_right
 
@@ -152,8 +150,10 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     return {
         "delta_left_mean": delta_left_mean, "delta_left_max": delta_left_max,
         "delta_right_mean": delta_right_mean, "delta_right_max": delta_right_max,
-        "left_hotspot_max_temp": left_hotspot_max_temp,
-        "right_hotspot_max_temp": right_hotspot_max_temp,
+        "left_95th_percentile_temp": left_95th_percentile_temp, # New field for T_Hotspot
+        "right_95th_percentile_temp": right_95th_percentile_temp, # New field for T_Hotspot
+        "left_absolute_max_temp": left_absolute_max_temp, # New field for T_CV2 Max
+        "right_absolute_max_temp": right_absolute_max_temp, # New field for T_CV2 Max
         "left_hotspot_size": left_hotspot_size, "right_hotspot_size": right_hotspot_size,
         "temp_diff_map": temp_diff_map,
         "mean_left": mean_left, "mean_right": mean_right,
@@ -164,8 +164,6 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     }
 
 # -------------------- TEXT SUMMARY --------------------
-# (The rest of the helper functions remain unchanged)
-
 def generate_text_explanation(
     mean_left, mean_right, significant_diff_ratio,
     delta_left_max, delta_right_max,
@@ -293,6 +291,11 @@ def find_hottest_hotspot_detection(detections, side_tag, image_gray):
 
     for det in hotspot_detections:
         x1, y1, x2, y2 = map(int, det["box"])
+        # Ensure coordinates are within bounds for cropping
+        h, w = image_gray.shape[:2]
+        x1 = max(0, min(w, x1)); x2 = max(0, min(w, x2))
+        y1 = max(0, min(h, y1)); y2 = max(0, min(h, y2))
+        
         hotspot_region = image_gray[y1:y2, x1:x2]
         if hotspot_region.size > 0:
             max_val_px = np.max(hotspot_region)
@@ -332,13 +335,20 @@ def create_report_figure(rgb_img, detections, stats):
     std_right = stats.get("std_right", 0.0)
     significant_diff_ratio = stats.get("significant_diff_ratio", 0.0)
 
-    left_hotspot_max_temp = stats.get("left_hotspot_max_temp", 0.0)
-    right_hotspot_max_temp = stats.get("right_hotspot_max_temp", 0.0)
+    # UPDATED: Use the new fields for Max and Percentile
+    left_95th_percentile_temp = stats.get("left_95th_percentile_temp", 0.0)
+    right_95th_percentile_temp = stats.get("right_95th_percentile_temp", 0.0)
+    left_absolute_max_temp = stats.get("left_absolute_max_temp", 0.0)
+    right_absolute_max_temp = stats.get("right_absolute_max_temp", 0.0)
     
+    # Display values (using 95th Percentile for Delta T)
     display_delta_left = delta_left_max if hotspot_left_detected else 0.00
     display_delta_right = delta_right_max if hotspot_right_detected else 0.00
-    display_max_temp_left = left_hotspot_max_temp if hotspot_left_detected else 0.00
-    display_max_temp_right = right_hotspot_max_temp if hotspot_right_detected else 0.00
+    
+    # The value displayed as "Max Hotspot Temp" on the metrics bar is the 95th Percentile (T_Hotspot)
+    display_max_temp_left = left_95th_percentile_temp if hotspot_left_detected else 0.00
+    display_max_temp_right = right_95th_percentile_temp if hotspot_right_detected else 0.00
+
 
     text_summary = generate_text_explanation(
         mean_left, mean_right, significant_diff_ratio,
@@ -377,13 +387,16 @@ def create_report_figure(rgb_img, detections, stats):
 
     # --- LEFT SIDE Hottest Hotspot ---
     if hotspot_left_detected:
-        hottest_left_det, max_temp_cv2_left = find_hottest_hotspot_detection(detections, "hotspot-left", gray_img)
+        hottest_left_det, _ = find_hottest_hotspot_detection(detections, "hotspot-left", gray_img)
         if hottest_left_det:
             x1, y1, x2, y2 = map(int, hottest_left_det["box"])
             
             rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor="red", facecolor="none")
             ax2.add_patch(rect)
             
+            # Use the Absolute Max Temp for the CV2 Luminosity report field
+            max_temp_cv2_left = left_absolute_max_temp
+            
             hotspot_region = gray_img[y1:y2, x1:x2]
             max_loc = np.unravel_index(np.argmax(hotspot_region), hotspot_region.shape)
             hot_y, hot_x = max_loc
@@ -393,20 +406,23 @@ def create_report_figure(rgb_img, detections, stats):
             
             ax2.text(
                 x1, y1 - 15,
-                f"CV2 Luminosity: {max_temp_cv2_left:.2f}°C\nROI Percentile: {left_hotspot_max_temp:.2f}°C",
+                f"CV2 Luminosity: {max_temp_cv2_left:.2f}°C\nROI Percentile: {left_95th_percentile_temp:.2f}°C",
                 color="white", fontsize=10,
                 bbox=dict(facecolor="red", alpha=0.7)
             )
 
     # --- RIGHT SIDE Hottest Hotspot ---
     if hotspot_right_detected:
-        hottest_right_det, max_temp_cv2_right = find_hottest_hotspot_detection(detections, "hotspot-right", gray_img)
+        hottest_right_det, _ = find_hottest_hotspot_detection(detections, "hotspot-right", gray_img)
         if hottest_right_det:
             x1, y1, x2, y2 = map(int, hottest_right_det["box"])
-
+            
             rect = Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2, edgecolor="red", facecolor="none")
             ax2.add_patch(rect)
             
+            # Use the Absolute Max Temp for the CV2 Luminosity report field
+            max_temp_cv2_right = right_absolute_max_temp
+
             hotspot_region = gray_img[y1:y2, x1:x2]
             max_loc = np.unravel_index(np.argmax(hotspot_region), hotspot_region.shape)
             hot_y, hot_x = max_loc
@@ -416,7 +432,7 @@ def create_report_figure(rgb_img, detections, stats):
 
             ax2.text(
                 x1, y1 - 15,
-                f"CV2 Luminosity: {max_temp_cv2_right:.2f}°C\nROI Percentile: {right_hotspot_max_temp:.2f}°C",
+                f"CV2 Luminosity: {max_temp_cv2_right:.2f}°C\nROI Percentile: {right_95th_percentile_temp:.2f}°C",
                 color="white", fontsize=10,
                 bbox=dict(facecolor="red", alpha=0.7)
             )
@@ -429,8 +445,8 @@ def create_report_figure(rgb_img, detections, stats):
 
     y_start, line_spacing = 0.50, 0.08 
     
-    # 1. Max Hotspot Temp
-    ax3.text(0.25, y_start, "Max Hotspot Temp:", fontsize=12, va="center", ha="left")
+    # 1. Max Hotspot Temp (This is the T_Hotspot value used for Delta T, which is the 95th Percentile)
+    ax3.text(0.25, y_start, "T_Hotspot (95th Pct) Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start, f"{display_max_temp_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 2. Median Breast Temp
@@ -438,7 +454,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.75, y_start - line_spacing, f"{median_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax3.text(0.25, y_start - 2*line_spacing, "T_Hotspot (95th Pct) - Median:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 2*line_spacing, f"{display_delta_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -464,8 +480,8 @@ def create_report_figure(rgb_img, detections, stats):
 
     y_start, line_spacing = 0.50, 0.08
     
-    # 1. Max Hotspot Temp
-    ax4.text(0.25, y_start, "Max Hotspot Temp:", fontsize=12, va="center", ha="left")
+    # 1. Max Hotspot Temp (This is the T_Hotspot value used for Delta T, which is the 95th Percentile)
+    ax4.text(0.25, y_start, "T_Hotspot (95th Pct) Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start, f"{display_max_temp_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 2. Median Breast Temp
@@ -473,7 +489,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.75, y_start - line_spacing, f"{median_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
     # 3. Max Hotspot - Median Breast Temp
-    ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast Temp:", fontsize=12, va="center", ha="left")
+    ax4.text(0.25, y_start - 2*line_spacing, "T_Hotspot (95th Pct) - Median:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 2*line_spacing, f"{display_delta_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
     # 4. Mean Breast Temp
@@ -542,7 +558,6 @@ def main():
             max_left_hotspot_temp = -float('inf')
             max_right_hotspot_temp = -float('inf')
             
-            # Grayscale image needed for finding max temp for scoping
             image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float32)
 
             for result in results:
@@ -558,7 +573,6 @@ def main():
                     
                     # --- NEW: Logic to find the single hottest YOLO hotspot box ---
                     if "hotspot" in class_name.lower():
-                        # Boundary checks for crop safety
                         h, w = image_gray.shape[:2]
                         x1_int, y1_int, x2_int, y2_int = map(int, box)
                         x1_int = max(0, min(w, x1_int)); x2_int = max(0, min(w, x2_int))
@@ -583,7 +597,6 @@ def main():
                 return
             else:
                 try:
-                    # --- MODIFIED CALL: Pass the hottest YOLO box for percentile scoping ---
                     stats = calculate_asymmetry(
                         rgb_img, left_breast_box, right_breast_box,
                         hottest_left_hotspot_box, hottest_right_hotspot_box
@@ -625,8 +638,12 @@ def main():
                     st.markdown("<h2 style='text-align: center;'>Raw Asymmetry Metrics</h2>", unsafe_allow_html=True)
                     st.markdown("")
                     
-                    max_temp_L = stats["left_hotspot_max_temp"] if hotspot_left_detected else 0.00
-                    max_temp_R = stats["right_hotspot_max_temp"] if hotspot_right_detected else 0.00
+                    # UPDATED to use the correct fields
+                    max_temp_95_L = stats["left_95th_percentile_temp"] if hotspot_left_detected else 0.00
+                    max_temp_95_R = stats["right_95th_percentile_temp"] if hotspot_right_detected else 0.00
+                    max_temp_abs_L = stats["left_absolute_max_temp"] if hotspot_left_detected else 0.00
+                    max_temp_abs_R = stats["right_absolute_max_temp"] if hotspot_right_detected else 0.00
+
                     delta_max_L = max(0, stats["delta_left_max"]) if hotspot_left_detected else 0.00
                     delta_max_R = max(0, stats["delta_right_max"]) if hotspot_right_detected else 0.00
                     delta_mean_L = max(0, stats["delta_left_mean"]) if hotspot_left_detected else 0.00
@@ -638,9 +655,10 @@ def main():
                         | :--- | :--- | :--- | :--- |
                         | **Median Temp** | {stats["median_left"]:.2f} $^\circ C$ | {stats["median_right"]:.2f} $^\circ C$ | **Diff**: {abs(stats["median_left"] - stats["median_right"]):.2f} $^\circ C$ |
                         | **Mean Temp** | {stats["mean_left"]:.2f} $^\circ C$ | {stats["mean_right"]:.2f} $^\circ C$ | **Diff**: {abs(stats["mean_left"] - stats["mean_right"]):.2f} $^\circ C$ |
-                        | **Max Hotspot Temp** | {max_temp_L:.2f} $^\circ C$ | {max_temp_R:.2f} $^\circ C$ | N/A |
-                        | **Max $\Delta T$ (Hotspot-Median)** | {delta_max_L:.2f} $^\circ C$ | {delta_max_R:.2f} $^\circ C$ | N/A |
-                        | **Mean $\Delta T$ (Hotspot-Median)** | {delta_mean_L:.2f} $^\circ C$ | {delta_mean_R:.2f} $^\circ C$ | N/A |
+                        | **T\_CV2 Max (Abs Max)** | {max_temp_abs_L:.2f} $^\circ C$ | {max_temp_abs_R:.2f} $^\circ C$ | N/A |
+                        | **T\_Hotspot (95th Pct)** | {max_temp_95_L:.2f} $^\circ C$ | {max_temp_95_R:.2f} $^\circ C$ | N/A |
+                        | **Max $\Delta T$ (T\_Hotspot - Median)** | {delta_max_L:.2f} $^\circ C$ | {delta_max_R:.2f} $^\circ C$ | N/A |
+                        | **Mean $\Delta T$ (Hotspot Mean - Median)** | {delta_mean_L:.2f} $^\circ C$ | {delta_mean_R:.2f} $^\circ C$ | N/A |
                         | **Temp Variation (Std Dev)** | $\pm{stats["std_left"]:.2f}$ $^\circ C$ | $\pm{stats["std_right"]:.2f}$ $^\circ C$ | N/A |
                         | **Hotspot Area (Pixels)** | {stats["left_hotspot_size"]} | {stats["right_hotspot_size"]} | N/A |
                         | **Histogram Difference (Bhattacharyya)** | N/A | N/A | {stats["histogram_diff"]:.4f} |

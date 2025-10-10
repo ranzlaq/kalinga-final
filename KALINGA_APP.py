@@ -270,8 +270,8 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
                 f"{side_label} Breast Asymmetry: 0% (No Hotspot Detected)", 
                 ha="center", va="bottom", fontsize=14, color="gray")
 
-    ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="gray")
-    ax.text(bar_x + bar_width, bar_y - 0.05, f"2$^\circ C$ - High", ha="right", va="top", fontsize=10, color="gray")
+    ax.text(bar_x, bar_y - 0.05, "0°C - Low", ha="left", va="top", fontsize=10, color="gray")
+    ax.text(bar_x + bar_width, bar_y - 0.05, f"2°C - High", ha="right", va="top", fontsize=10, color="gray")
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -655,4 +655,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 

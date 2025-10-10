@@ -96,31 +96,27 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
         if temp_crop.size > 0:
             right_pct_source = temp_crop
 
-    # 1. CALCULATE TRUE 95th PERCENTILE (T_Hotspot for Delta T)
     hotspot_thresh_left_px = np.percentile(left_pct_source, hotspot_pct)
     hotspot_thresh_right_px = np.percentile(right_pct_source, hotspot_pct)
 
-    # 2. CALCULATE ABSOLUTE MAX PIXEL (T_CV2 Luminosity)
     left_absolute_max_px = float(np.max(left_pct_source)) if left_pct_source.size > 0 else 0.0
     right_absolute_max_px = float(np.max(right_pct_source)) if right_pct_source.size > 0 else 0.0
 
-    # Hotspot pixels (for calculating mean of hotspots, and size)
     left_hotspots_px = left_pct_source[left_pct_source >= hotspot_thresh_left_px]
     right_hotspots_px = right_pct_source[right_pct_source >= hotspot_thresh_right_px]
 
-    # MEAN PIXEL VALUES OF THE HOTSPOT PIXELS (Used for Delta T Mean)
     left_hotspot_mean_px = float(np.mean(left_hotspots_px)) if left_hotspots_px.size > 0 else 0.0
     right_hotspot_mean_px = float(np.mean(right_hotspots_px)) if right_hotspots_px.size > 0 else 0.0
 
     # TEMPERATURE CONVERSION
-    left_95th_percentile_temp = pixel_to_temp(hotspot_thresh_left_px) # <-- New T_Hotspot
-    right_95th_percentile_temp = pixel_to_temp(hotspot_thresh_right_px) # <-- New T_Hotspot
-    left_absolute_max_temp = pixel_to_temp(left_absolute_max_px) # <-- New T_CV2 Max
-    right_absolute_max_temp = pixel_to_temp(right_absolute_max_px) # <-- New T_CV2 Max
+    left_95th_percentile_temp = pixel_to_temp(hotspot_thresh_left_px)
+    right_95th_percentile_temp = pixel_to_temp(hotspot_thresh_right_px)
+    left_absolute_max_temp = pixel_to_temp(left_absolute_max_px)
+    right_absolute_max_temp = pixel_to_temp(right_absolute_max_px)
     left_hotspot_mean_temp = pixel_to_temp(left_hotspot_mean_px)
     right_hotspot_mean_temp = pixel_to_temp(right_hotspot_mean_px)
 
-    # DELTA T CALCULATIONS - NOW USES THE TRUE 95TH PERCENTILE
+    # DELTA T CALCULATIONS
     delta_left_max = left_95th_percentile_temp - median_left
     delta_right_max = right_95th_percentile_temp - median_right
     delta_left_mean = left_hotspot_mean_temp - median_left
@@ -148,10 +144,10 @@ def calculate_asymmetry(image_rgb, left_box, right_box,
     return {
         "delta_left_mean": delta_left_mean, "delta_left_max": delta_left_max,
         "delta_right_mean": delta_right_mean, "delta_right_max": delta_right_max,
-        "left_95th_percentile_temp": left_95th_percentile_temp, # New field for T_Hotspot
-        "right_95th_percentile_temp": right_95th_percentile_temp, # New field for T_Hotspot
-        "left_absolute_max_temp": left_absolute_max_temp, # New field for T_CV2 Max
-        "right_absolute_max_temp": right_absolute_max_temp, # New field for T_CV2 Max
+        "left_95th_percentile_temp": left_95th_percentile_temp,
+        "right_95th_percentile_temp": right_95th_percentile_temp,
+        "left_absolute_max_temp": left_absolute_max_temp,
+        "right_absolute_max_temp": right_absolute_max_temp,
         "left_hotspot_size": left_hotspot_size, "right_hotspot_size": right_hotspot_size,
         "temp_diff_map": temp_diff_map,
         "mean_left": mean_left, "mean_right": mean_right,
@@ -443,7 +439,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax3.text(0.25, y_start - line_spacing, "Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - line_spacing, f"{median_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
-    # 3. Max Hotspot - Median Breast Temp
+    # 3. Max Hotspot - Median Breast
     ax3.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast:", fontsize=12, va="center", ha="left")
     ax3.text(0.75, y_start - 2*line_spacing, f"{display_delta_left:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
@@ -478,7 +474,7 @@ def create_report_figure(rgb_img, detections, stats):
     ax4.text(0.25, y_start - line_spacing, "Median Breast Temp:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - line_spacing, f"{median_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
     
-    # 3. Max Hotspot - Median Breast Temp
+    # 3. Max Hotspot - Median Breast
     ax4.text(0.25, y_start - 2*line_spacing, "Max Hotspot - Median Breast:", fontsize=12, va="center", ha="left")
     ax4.text(0.75, y_start - 2*line_spacing, f"{display_delta_right:.2f}$^\circ C$", fontsize=12, va="center", ha="right")
 
@@ -626,7 +622,6 @@ def main():
                     st.markdown("<h2 style='text-align: center;'>Raw Asymmetry Metrics</h2>", unsafe_allow_html=True)
                     st.markdown("")
                     
-                    # UPDATED to use the correct fields
                     max_temp_95_L = stats["left_95th_percentile_temp"] if hotspot_left_detected else 0.00
                     max_temp_95_R = stats["right_95th_percentile_temp"] if hotspot_right_detected else 0.00
                     max_temp_abs_L = stats["left_absolute_max_temp"] if hotspot_left_detected else 0.00
@@ -660,11 +655,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
-
-
-
-
-
-
-

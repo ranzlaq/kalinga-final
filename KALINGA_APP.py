@@ -231,9 +231,9 @@ def get_interpretation_text(side, hotspot_detected, hotspot_count, delta_max, st
             f"is detected between breast and hottest hotspot. Multifocal hotspots are also detected, and there is a possibility that different types of anomalies are present."
         )
     else:
-        if delta_max > 2:
+        if delta_max > 1.34:
             detail = "significant temperature difference"
-        elif delta_max > 1:
+        elif delta_max > 0.67:
             detail = "moderate temperature difference"
         else:
             detail = "minimal temperature difference"
@@ -660,6 +660,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 

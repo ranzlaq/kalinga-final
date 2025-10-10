@@ -267,7 +267,7 @@ def draw_asymmetry_bar(ax, side_label, delta, hotspot_detected=True, MAX_DT=MAX_
                 ha="center", va="bottom", fontsize=14)
     else:
         ax.text(0.5, bar_y + bar_height + label_offset,
-                f"{side_label} Breast Asymmetry: 0% (No Hotspot Detected)", 
+                f"{side_label} Breast Asymmetry: No Hotspot Detected", 
                 ha="center", va="bottom", fontsize=14, color="gray")
 
     ax.text(bar_x, bar_y - 0.05, "0$^\circ C$ - Low", ha="left", va="top", fontsize=10, color="gray")
@@ -655,3 +655,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+

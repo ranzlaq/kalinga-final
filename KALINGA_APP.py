@@ -341,7 +341,7 @@ def create_report_figure(rgb_img, detections, stats):
 
     text_summary = generate_text_explanation(
         mean_left, mean_right, significant_diff_ratio,
-        delta_left_max, delta_right_max,
+        display_delta_left, display_delta_right,
         hotspot_any_detected
     )
     interpretation_left = get_interpretation_text("left", hotspot_left_detected, left_hotspot_count, delta_left_max, std_left)
@@ -655,6 +655,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
